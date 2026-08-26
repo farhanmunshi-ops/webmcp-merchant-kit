@@ -1,0 +1,7 @@
+name = "packrift-webmcp-telemetry"
+main = "worker.js"
+compatibility_date = "2025-09-23"
+
+[[kv_namespaces]]
+binding = "STATS"
+id = "0d0b1e1d9e484755ac5d5e290693d46b"

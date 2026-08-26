@@ -29,6 +29,12 @@ A zero-dependency library that registers **merchant-defined tools alongside the 
 
 Any merchant can use it: `new MerchantKit({merchant}) → connect() → registerTool(...)`. MIT.
 
+### 1b. `webmcp.json` — declarative agent tools, no JavaScript required ([packages/merchant-kit/recipes.js](packages/merchant-kit/recipes.js))
+
+What `robots.txt` was to crawlers and `sitemap.xml` to indexing, `webmcp.json` aims to be for agent tools: **one JSON file where a site says what an agent can *do* here.** The kit fetches the manifest and compiles each entry into a live WebMCP tool — three endpoint types (`static` for zero-network answers, `mcp` to bridge a remote MCP tool, `https`-only `http` for plain APIs), per-page scoping, and read-only annotation. Unsafe endpoints are refused at compile time.
+
+Packrift's own [webmcp.json](theme/assets/webmcp.json) ships this way in production: `get_agent_guide`, the orientation tool that tells any arriving agent what this store's tools can do and where the desk is — defined in pure JSON.
+
 ### 2. Eight merchant tools, live on every packrift.com page ([storefront/tools.js](storefront/tools.js))
 
 | Tool | What the agent can do that it couldn't before |
@@ -56,6 +62,8 @@ Registration is **context-aware**: product pages add product-bound tools, the de
 
 Most WebMCP tools return text to the agent. These **co-author a UI artifact with the human** — both parties read and write the same worksheet, which is the point of an agent working *in your tab* rather than on a server. No agent? The page is a fully usable manual form.
 
+**Tools compose.** On the desk, one `beat_supplier_quote` call cross-references every line *and paints the matches straight onto the buyer's worksheet* — then tells the agent which tools finish the job (pricing → freight → totals). Global tools know about page tools and use them.
+
 ### 4. Trust tiers, not maximal autonomy
 
 - **Parcel-size orders**: fully autonomous — our tools find/verify the SKU, then hand off to Shopify's built-in `update_cart` → `proceed_to_checkout`. The agent completes the whole journey in-tab.
@@ -69,7 +77,11 @@ The same production tool registry serves:
 - **MCP** — remote Streamable HTTP at `mcp.packrift.com/mcp` for headless agents (Claude, Cursor, …)
 - **UCP** — Shopify's Universal Commerce Protocol at `/.well-known/ucp` for checkout agents
 
-The WebMCP layer is a browser-side transport over the same brain — merchant intelligence written once, served to every kind of agent.
+The WebMCP layer is a browser-side transport over the same brain — merchant intelligence written once, served to every kind of agent. Humans get their own front door at [packrift.com/pages/for-agents](https://packrift.com/pages/for-agents).
+
+### 6. Honest, anonymous telemetry ([worker/](worker/))
+
+A 90-line Cloudflare Worker counts tool calls in aggregate — tool name + page type only, no PII, no identifiers — and serves them publicly at [`/stats`](https://packrift-webmcp-telemetry.packrift-co.workers.dev/stats). The desk shows the live number once there's real activity. Counters are approximate by design (KV last-write-wins) and labeled as such everywhere they appear.
 
 ## Try it
 
@@ -85,6 +97,7 @@ No agent-capable browser? Run the local harness, which polyfills `document.model
 ```bash
 npm install && npm run build && npm run serve
 # open http://localhost:8123/harness/index.html
+npm test   # kit + manifest compiler suite (node:test)
 ```
 
 ## Architecture

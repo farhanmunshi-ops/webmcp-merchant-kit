@@ -171,8 +171,8 @@ export class MerchantKit {
       text = JSON.stringify(raw, null, 1);
     }
     if (text.length > this.maxOutputChars) {
-      text = text.slice(0, this.maxOutputChars - 60) +
-        `\n…truncated. Ask a narrower question or use a more specific tool.`;
+      const suffix = `\n…truncated. Ask a narrower question or use a more specific tool.`;
+      text = text.slice(0, Math.max(0, this.maxOutputChars - suffix.length)) + suffix;
     }
     return { content: [{ type: "text", text }] };
   }

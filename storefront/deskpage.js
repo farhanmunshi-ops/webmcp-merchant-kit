@@ -185,6 +185,27 @@ export function mountDeskPage(kit, cfg) {
     await fileWorksheet(email, "");
   });
 
+  // Cross-tool composability: global tools (e.g. beat_supplier_quote) paint the
+  // worksheet directly through this page-owned API.
+  window.__pkDeskApi = {
+    upsertRow(row) { state.rows.set(row.row_id, row); renderRows(); },
+    setFreight(f) { state.freight = f; renderTotals(); },
+    setTotals(t) { state.totals = t; renderTotals(); },
+  };
+
+  // Live proof line — approximate, anonymous aggregate counts from the
+  // telemetry worker; shown only once there is real activity to show.
+  if (cfg.telemetryUrl) {
+    fetch(cfg.telemetryUrl + "/stats").then((r) => r.json()).then((s) => {
+      if (!s || !s.total_calls || s.total_calls < 25) return;
+      const line = document.createElement("p");
+      line.className = "pk-sub";
+      line.style.cssText = "font-size:12.5px;margin-top:-14px";
+      line.textContent = `Live: agents have made ${s.total_calls.toLocaleString()} tool calls on this store since ${s.since} (approximate, anonymous).`;
+      root.querySelector(".pk-sub").after(line);
+    }).catch(() => {});
+  }
+
   /* ---------------- desk-scoped WebMCP tools ---------------- */
   const str = { type: "string" };
   const num = { type: "number" };

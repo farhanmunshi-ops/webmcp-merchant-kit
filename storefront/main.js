@@ -6,6 +6,7 @@
  * annotates the real form for the declarative WebMCP API.
  */
 import { MerchantKit } from "../packages/merchant-kit/kit.js";
+import { loadRecipes } from "../packages/merchant-kit/recipes.js";
 import { globalTools, productTools, setQuoteIntake } from "./tools.js";
 import { mountDesk } from "./desk.js";
 import { mountDeskPage } from "./deskpage.js";
@@ -33,6 +34,19 @@ async function init() {
     for (const def of globalTools) if (await kit.registerTool(def)) registered++;
     registered += await kit.registerPageTools(!!cfg.product, productTools(cfg.product));
     registered += await kit.registerPageTools(deskTools.length > 0, deskTools);
+
+    // Declarative tools from the merchant's webmcp.json manifest — no JS needed.
+    if (cfg.manifestUrl) {
+      try {
+        const recipeDefs = await loadRecipes(cfg.manifestUrl, {
+          pageType: cfg.product ? "product" : "default",
+          pathname: location.pathname,
+        });
+        for (const def of recipeDefs) if (await kit.registerTool(def)) registered++;
+      } catch (err) {
+        if (cfg.debug) console.warn("[packrift-webmcp] webmcp.json skipped:", err.message);
+      }
+    }
   }
 
   // Declarative API enhancement on the bulk-quote page's real form.
@@ -46,6 +60,18 @@ async function init() {
         "contact[email]": "Buyer's email address for the quote",
         "contact[body]": "Items requested: SKUs or specs with quantities, one per line",
       },
+    });
+  }
+
+  // Anonymous aggregate telemetry (tool name + page type only — no PII, no IDs).
+  if (mc && cfg.telemetryUrl) {
+    const page = cfg.product ? "product" : location.pathname.includes("agent-desk") ? "desk" : "default";
+    kit.on("call", ({ tool }) => {
+      fetch(cfg.telemetryUrl + "/event", {
+        method: "POST", keepalive: true,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tool, page }),
+      }).catch(() => {});
     });
   }
 

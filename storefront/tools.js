@@ -164,26 +164,45 @@ export const globalTools = [
     async execute({ lines, supplier_total, destination_zip }) {
       const capped = (lines || []).slice(0, 8);
       const results = await Promise.all(
-        capped.map(async (line) => {
+        capped.map(async (line, i) => {
           try {
-            const text = await mcpCall("compare_alternatives", {
-              requested_spec: line.description,
-              limit: 2,
-            });
-            return { line, text: text.slice(0, 700) };
+            const text = await mcpCall("compare_alternatives", { requested_spec: line.description, limit: 1 });
+            let best = null;
+            try { best = JSON.parse(text).results?.[0] || null; } catch { /* non-JSON reply */ }
+            return { line, i, best, raw: text.slice(0, 400) };
           } catch (err) {
-            return { line, text: `no match found (${err.message})` };
+            return { line, i, best: null, err: err.message };
           }
         })
       );
-      const parts = results.map(
-        (r, i) => `LINE ${i + 1} (qty ${r.line.quantity}): ${r.line.description}\n${r.text}`
-      );
+      // Composability: on the Agent Quote Desk, paint matches straight onto the
+      // buyer's worksheet — one tool call fills the screen; the agent then
+      // refines quantities/prices with the desk's own tools.
+      const desk = typeof window !== "undefined" ? window.__pkDeskApi : null;
+      const parts = results.map(({ line, i, best, err, raw }) => {
+        if (desk) {
+          desk.upsertRow({
+            row_id: `line${i + 1}`,
+            supplier_line: line.description,
+            quantity: line.quantity,
+            packrift_sku: best?.sku,
+            packrift_title: best?.title,
+            packrift_url: best?.product_url,
+            confidence: best?.match?.confidence >= 0.8 ? "high" : best ? "medium" : undefined,
+            note: best ? undefined : (err || "no structured match"),
+          });
+        }
+        return best
+          ? `LINE ${i + 1} (qty ${line.quantity}): ${line.description}\n  -> ${best.sku} ${best.title} (confidence ${best.match?.confidence ?? "?"}, variant_id ${best.variant_id}) ${best.product_url}`
+          : `LINE ${i + 1} (qty ${line.quantity}): ${line.description} -> no structured match${err ? ` (${err})` : ""}: ${raw || ""}`;
+      });
       const summary = [
         `Cross-referenced ${capped.length} supplier line(s) against Packrift's catalog.`,
         supplier_total ? `Supplier total to beat: $${supplier_total}.` : "",
         destination_zip ? `Destination ZIP ${destination_zip}: run estimate_shipping_cost on the matched variant IDs for landed cost.` : "",
-        `Next: confirm matches with the buyer, then either add parcel-size quantities to cart (update_cart) or file a pay-ready bulk quote with request_pay_ready_quote — a human verifies it and locks exact freight before anything is sent.`,
+        desk
+          ? "Matched lines are ALREADY PAINTED on the buyer's worksheet (rows line1..). Next: get line totals with get_pricing, update each row via upsert_comparison_row, then set_freight_line and set_savings_summary."
+          : "Next: confirm matches with the buyer, then either add parcel-size quantities to cart (update_cart) or file a pay-ready bulk quote with request_pay_ready_quote — a human verifies it and locks exact freight before anything is sent.",
       ].filter(Boolean).join(" ");
       return parts.join("\n\n") + "\n\n" + summary;
     },

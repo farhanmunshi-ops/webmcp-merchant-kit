@@ -5,7 +5,9 @@
 {%- endcomment -%}
 <script>
   window.__PACKRIFT_WEBMCP__ = {
-    quoteIntakeUrl: "https://187-77-24-204.sslip.io/packrift/quote-intake/intake"
+    quoteIntakeUrl: "https://187-77-24-204.sslip.io/packrift/quote-intake/intake",
+    manifestUrl: {{ 'webmcp.json' | asset_url | json }},
+    telemetryUrl: "https://packrift-webmcp-telemetry.packrift-co.workers.dev"
     {%- if template contains 'product' and product %},
     product: {
       handle: {{ product.handle | json }},

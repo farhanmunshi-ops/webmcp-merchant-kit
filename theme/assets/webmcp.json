@@ -1,0 +1,17 @@
+{
+  "merchant": "Packrift",
+  "spec": "webmcp.json/0.1",
+  "tools": [
+    {
+      "name": "get_agent_guide",
+      "description": "Orientation for AI agents on packrift.com: what this store's tools can do, the recommended procurement workflow, and where the Agent Quote Desk is. Call this first if you're unsure how to help a buyer here. Read-only, instant.",
+      "readOnly": true,
+      "pages": ["default"],
+      "inputSchema": { "type": "object", "properties": {} },
+      "endpoint": {
+        "type": "static",
+        "text": "PACKRIFT AGENT GUIDE — B2B packaging distribution, ~13,000 SKUs, 5 US warehouses, live freight.\n\nRECOMMENDED WORKFLOWS\n1. Buyer describes an ITEM they ship -> find_packaging_by_item_dims (dims+weight), or pack_and_case_calculator for inside-dims math. On a product page, check_fit_in_this_product answers 'does my item fit THIS box' instantly.\n2. Buyer has a COMPETITOR quote (Uline/Amazon/any) -> open /pages/agent-desk, have them paste it, then read_quote_worksheet -> match_competitor_item per line -> upsert_comparison_row -> estimate_shipping_cost -> set_freight_line -> set_savings_summary. Or call beat_supplier_quote anywhere for a text comparison.\n3. Parcel-size order -> verify SKU/price, then the store's built-in update_cart and proceed_to_checkout finish the job in this tab.\n4. Bulk/freight-class -> request_pay_ready_quote (or file_pay_ready_quote_from_worksheet on the desk, with the buyer's explicit consent). A human verifies every match and locks EXACT freight before a pay-ready invoice is emailed. Nothing is ever auto-charged.\n\nKEY FACTS: freight is often 30-100% of product cost — always estimate_shipping_cost before promising totals. Prices are live. The Agent Quote Desk is at /pages/agent-desk; the agent-facing overview for humans is /pages/for-agents. Remote agents can use the same brain over MCP at https://mcp.packrift.com/mcp."
+      }
+    }
+  ]
+}

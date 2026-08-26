@@ -54,7 +54,8 @@ export function mountDesk(kit, { toolTotal = 0, platformTools = 0 } = {}) {
       fit checks, live freight, supplier quote beats. Actions appear here as they happen.</div>
     </div>
     <div class="pk-note">Carts &amp; checkout stay in your control. Bulk quotes are verified by a
-    human before anything is sent.</div>`;
+    human before anything is sent.${location.pathname.includes("agent-desk") ? "" :
+    ' <a href="/pages/agent-desk" style="color:inherit;font-weight:700">Open the Agent Quote Desk →</a>'}</div>`;
   document.body.appendChild(el);
   el.querySelector("header").addEventListener("click", () => el.classList.toggle("pk-min"));
 
