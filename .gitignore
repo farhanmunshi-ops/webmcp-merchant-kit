@@ -3,3 +3,4 @@ dist/
 theme/theme.liquid.current
 theme/theme.liquid.new
 .DS_Store
+ops/
