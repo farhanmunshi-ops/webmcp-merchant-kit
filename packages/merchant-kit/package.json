@@ -1,0 +1,16 @@
+{
+  "name": "webmcp-merchant-kit",
+  "version": "0.1.0",
+  "description": "Register merchant-defined WebMCP tools alongside your platform's built-ins (e.g. Shopify's ten) — collision-safe, page-scoped, with webmcp.json declarative manifests. Zero dependencies.",
+  "type": "module",
+  "main": "kit.js",
+  "exports": {
+    ".": "./kit.js",
+    "./recipes": "./recipes.js"
+  },
+  "files": ["kit.js", "recipes.js", "README.md"],
+  "keywords": ["webmcp", "model-context", "agents", "shopify", "storefront", "mcp", "webmcp-json"],
+  "repository": { "type": "git", "url": "git+https://github.com/farhanmunshi-ops/webmcp-merchant-kit.git" },
+  "homepage": "https://github.com/farhanmunshi-ops/webmcp-merchant-kit#readme",
+  "license": "MIT"
+}

@@ -82,9 +82,11 @@ export function mountDeskPage(kit, cfg) {
         <input id="pk-zip" autocomplete="postal-code" placeholder="75201">
         <label for="pk-email">Email for the pay-ready quote</label>
         <input id="pk-email" type="email" autocomplete="email" placeholder="you@company.com">
+        <button type="button" id="pk-sample" style="background:none;border:none;color:var(--pk-accent);font:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:8px 0 0;text-align:left">No quote handy? Try a sample Uline quote →</button>
         <div class="pk-agenthint">Using an agent-capable browser? Just ask:
         <code>Beat this supplier quote on this page.</code> The desk exposes its worksheet to your
-        agent as tools — it will read your paste, match every line, and fill the table for you.</div>
+        agent as tools — it will read your paste, match every line, and fill the table for you.
+        <button type="button" id="pk-copyprompt" style="display:block;margin-top:8px;background:none;border:1px solid var(--pk-line);border-radius:7px;color:var(--pk-ink);font:inherit;font-size:12px;font-weight:600;cursor:pointer;padding:6px 10px">Copy the agent prompt</button></div>
       </div>
       <div class="pk-card">
         <h2>2 · Packrift comparison</h2>
@@ -183,6 +185,19 @@ export function mountDeskPage(kit, cfg) {
     if (!email) { $("#pk-email").focus(); return; }
     $("#pk-file").disabled = true;
     await fileWorksheet(email, "");
+  });
+
+  // Zero-friction entry points: a sample quote to try instantly, and the exact
+  // prompt to hand an agent — no one should land here with nothing to do.
+  $("#pk-sample").addEventListener("click", () => {
+    $("#pk-paste").value = "S-4344 12x12x12 200# boxes — 250 @ $1.42 = $355.00\n6x9 poly bags 2 mil — 1,000 @ $0.031 = $31.00\nTotal: $386.00";
+    $("#pk-zip").value = "75201";
+    $("#pk-plan").textContent = "Sample loaded — ask your agent to beat it, or file it below.";
+    $("#pk-paste").focus();
+  });
+  $("#pk-copyprompt").addEventListener("click", async (e) => {
+    const prompt = "Open https://packrift.com/pages/agent-desk in your browser. The site provides its own agent tools (WebMCP). Use them — start with get_agent_guide and read_quote_worksheet — to beat my supplier quote, and fill the comparison on the page as you work. Don't file anything without asking me first.";
+    try { await navigator.clipboard.writeText(prompt); e.target.textContent = "Copied ✓"; } catch { e.target.textContent = prompt; }
   });
 
   // Cross-tool composability: global tools (e.g. beat_supplier_quote) paint the
