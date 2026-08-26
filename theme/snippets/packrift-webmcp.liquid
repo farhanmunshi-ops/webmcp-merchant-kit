@@ -1,0 +1,46 @@
+{%- comment -%}
+  Packrift WebMCP merchant tools — registers Packrift's agent-facing tools
+  alongside Shopify's built-in storefront WebMCP tools. Loads lazily and stays
+  inert in browsers without a model context. Source: packrift-webmcp repo.
+{%- endcomment -%}
+<script>
+  window.__PACKRIFT_WEBMCP__ = {
+    quoteIntakeUrl: "https://187-77-24-204.sslip.io/packrift/quote-intake/intake"
+    {%- if template contains 'product' and product %},
+    product: {
+      handle: {{ product.handle | json }},
+      title: {{ product.title | json }},
+      url: {{ product.url | json }},
+      sku: {{ product.selected_or_first_available_variant.sku | json }},
+      price_usd: {{ product.selected_or_first_available_variant.price | divided_by: 100.0 | json }},
+      available: {{ product.available | json }},
+      variant_ids: [{{ product.selected_or_first_available_variant.id | json }}],
+      specs: {
+        {%- assign spec_pairs = "" -%}
+        {%- for i in (1..5) -%}
+          {%- assign name_key = "spec" | append: i | append: "_name" -%}
+          {%- assign value_key = "spec" | append: i | append: "_value" -%}
+          {%- assign s_name = product.metafields.custom[name_key].value -%}
+          {%- assign s_value = product.metafields.custom[value_key].value -%}
+          {%- if s_name and s_value -%}
+            {{ s_name | json }}: {{ s_value | json }},
+          {%- endif -%}
+        {%- endfor -%}
+        "_": null
+      },
+      {%- if product.metafields.custom.shipping_length.value %}
+      shipping_carton_in: {
+        length: {{ product.metafields.custom.shipping_length.value | json }},
+        width: {{ product.metafields.custom.shipping_width.value | json }},
+        depth: {{ product.metafields.custom.shipping_depth.value | json }}
+      },
+      {%- endif %}
+      {%- if product.metafields.custom.freight_class.value %}
+      freight_class: {{ product.metafields.custom.freight_class.value | json }},
+      {%- endif %}
+      ships_parcel: {{ product.metafields.custom.ships_ups.value | default: "unknown" | json }}
+    }
+    {%- endif %}
+  };
+</script>
+<script src="{{ 'packrift-webmcp.js' | asset_url }}" defer></script>

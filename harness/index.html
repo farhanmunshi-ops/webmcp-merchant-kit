@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Packrift WebMCP harness</title>
+<style>
+  body{font-family:Inter,system-ui,sans-serif;margin:24px;max-width:820px;background:#faf7f3;color:#1a1a1a}
+  h1{font-size:18px} button{margin:4px 6px 4px 0;padding:8px 12px;border:1px solid #e86100;
+  background:#fff;color:#e86100;border-radius:8px;font-weight:600;cursor:pointer}
+  button:hover{background:#e86100;color:#fff}
+  pre{background:#1a1a1a;color:#f2ede7;padding:14px;border-radius:10px;white-space:pre-wrap;
+  font-size:12px;max-height:420px;overflow:auto}
+  .pill{display:inline-block;background:#1a1a1a;color:#fff;border-radius:99px;padding:2px 10px;font-size:12px}
+</style>
+<script src="./polyfill.js"></script>
+<h1>Packrift WebMCP harness <span class="pill" id="status">booting…</span></h1>
+<p>Polyfilled <code>document.modelContext</code> + the real storefront bundle. Buttons call
+<code>executeTool</code> exactly as an agent-capable browser would.</p>
+<div id="buttons"></div>
+<pre id="out">—</pre>
+<script>
+  // Simulate the theme-injected runtime config + a PDP context.
+  window.__PACKRIFT_WEBMCP__ = {
+    debug: true,
+    product: {
+      handle: "harness-demo-box",
+      title: "12x9x4 Corrugated Box (harness demo)",
+      sku: "DEMO-1294",
+      price: "1.10",
+      pack_count: 25,
+      inside_dimensions_in: { length: 12, width: 9, depth: 4 },
+      variant_ids: ["999999999"],
+    },
+  };
+</script>
+<script type="module">
+  import "../storefront/main.js";
+  const out = document.getElementById("out");
+  const show = (v) => { out.textContent = typeof v === "string" ? v : JSON.stringify(v, null, 2); };
+  const CASES = {
+    list_tools: () => document.modelContext.getTools(),
+    find_packaging_by_item_dims: () => document.modelContext.executeTool("find_packaging_by_item_dims",
+      JSON.stringify({ item_length_in: 3, item_width_in: 3, item_depth_in: 8, item_weight_lb: 1.2, use_case: "shipping candles" })),
+    pack_and_case_calculator: () => document.modelContext.executeTool("pack_and_case_calculator",
+      JSON.stringify({ item_length_in: 3, item_width_in: 3, item_depth_in: 8, padding_in: 0.5 })),
+    match_competitor_item: () => document.modelContext.executeTool("match_competitor_item",
+      JSON.stringify({ requested_spec: "12x12x12 200# kraft corrugated box 25/bundle", competitor_reference: "Uline S-4344" })),
+    check_fit_in_this_product: () => document.modelContext.executeTool("check_fit_in_this_product",
+      JSON.stringify({ item_length_in: 11, item_width_in: 8, item_depth_in: 3.5 })),
+    get_product_on_this_page: () => document.modelContext.executeTool("get_product_on_this_page", "{}"),
+    beat_supplier_quote: () => document.modelContext.executeTool("beat_supplier_quote",
+      JSON.stringify({ lines: [{ description: "S-4344 12x12x12 200# boxes", quantity: 250 },
+                               { description: "2 mil poly bags 6x9", quantity: 1000 }],
+                       supplier_total: 612, destination_zip: "75201" })),
+  };
+  const wrap = document.getElementById("buttons");
+  for (const [name, fn] of Object.entries(CASES)) {
+    const b = document.createElement("button");
+    b.textContent = name;
+    b.onclick = async () => { show("running " + name + "…"); try { show(await fn()); } catch (e) { show("ERROR: " + e.message); } };
+    wrap.appendChild(b);
+  }
+  setTimeout(async () => {
+    const n = (await document.modelContext.getTools()).length;
+    document.getElementById("status").textContent = n + " tools registered";
+  }, 800);
+</script>
