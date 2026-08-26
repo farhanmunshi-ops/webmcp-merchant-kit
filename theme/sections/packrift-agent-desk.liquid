@@ -1,0 +1,21 @@
+{%- comment -%}
+  Agent Quote Desk — mount point. The workspace UI and its WebMCP tools are
+  rendered by assets/packrift-webmcp.js (see snippets/packrift-webmcp.liquid,
+  loaded globally from theme.liquid).
+{%- endcomment -%}
+<div id="pk-desk-root" data-desk="agent-quote-desk">
+  <noscript>
+    <h1>Agent Quote Desk</h1>
+    <p>This workspace needs JavaScript. For a bulk quote, use
+    <a href="/pages/bulk-quote">the bulk quote form</a> — a human verifies the match,
+    locks exact freight, and emails a pay-ready quote.</p>
+  </noscript>
+</div>
+
+{% schema %}
+{
+  "name": "Packrift Agent Desk",
+  "settings": [],
+  "presets": [{ "name": "Packrift Agent Desk" }]
+}
+{% endschema %}

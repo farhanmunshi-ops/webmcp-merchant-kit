@@ -8,6 +8,7 @@
 import { MerchantKit } from "../packages/merchant-kit/kit.js";
 import { globalTools, productTools, setQuoteIntake } from "./tools.js";
 import { mountDesk } from "./desk.js";
+import { mountDeskPage } from "./deskpage.js";
 
 const SHOPIFY_BUILTIN_TOOL_COUNT = 10;
 
@@ -26,6 +27,13 @@ async function init() {
   if (mc) {
     for (const def of globalTools) if (await kit.registerTool(def)) registered++;
     registered += await kit.registerPageTools(!!cfg.product, productTools(cfg.product));
+  }
+
+  // The Agent Quote Desk: a shared human+agent worksheet. The page renders for
+  // everyone; its desk tools register only in agent-capable browsers.
+  if (document.getElementById("pk-desk-root")) {
+    const deskTools = mountDeskPage(kit, cfg);
+    if (mc) registered += await kit.registerPageTools(true, deskTools);
   }
 
   // Declarative API enhancement on the bulk-quote page's real form.
