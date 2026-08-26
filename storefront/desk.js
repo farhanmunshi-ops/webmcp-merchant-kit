@@ -67,19 +67,24 @@ export function mountDesk(kit, { toolTotal = 0, platformTools = 0 } = {}) {
   };
   refreshCount();
 
-  const row = (html, cls = "") => {
+  const running = new Map(); // tool -> its in-flight row, updated in place on completion
+  const row = (tool, meta) => {
     const div = document.createElement("div");
-    div.className = `pk-row ${cls}`;
-    div.innerHTML = html;
+    div.className = "pk-row";
+    div.innerHTML = `<span class="pk-tool">${tool}</span> <span class="pk-meta">${meta}</span>`;
     log.prepend(div);
     while (log.children.length > 12) log.lastChild.remove();
+    return div;
+  };
+  const settle = (tool, meta) => {
+    const el = running.get(tool);
+    running.delete(tool);
+    if (el && el.isConnected) el.querySelector(".pk-meta").textContent = meta;
+    else row(tool, meta);
   };
 
   kit.on("register", () => refreshCount());
-  kit.on("call", ({ tool }) =>
-    row(`<span class="pk-tool">${tool}</span> <span class="pk-meta">running…</span>`));
-  kit.on("result", ({ tool, ms }) =>
-    row(`<span class="pk-tool">${tool}</span> <span class="pk-meta">done in ${(ms / 1000).toFixed(1)}s</span>`));
-  kit.on("error", ({ tool, error }) =>
-    row(`<span class="pk-tool">${tool}</span> <span class="pk-meta">⚠ ${String(error).slice(0, 80)}</span>`));
+  kit.on("call", ({ tool }) => running.set(tool, row(tool, "running…")));
+  kit.on("result", ({ tool, ms }) => settle(tool, `done in ${(ms / 1000).toFixed(1)}s`));
+  kit.on("error", ({ tool, error }) => settle(tool, `⚠ ${String(error).slice(0, 80)}`));
 }
