@@ -19,21 +19,20 @@ async function init() {
   const kit = new MerchantKit({ merchant: "Packrift" });
   window.__packriftAgentDesk = kit; // debug/harness hook
 
+  // The Agent Quote Desk page renders for EVERYONE — it's a fully usable manual
+  // worksheet without an agent. Mount it before the agent-capability gate.
+  const deskRoot = document.getElementById("pk-desk-root");
+  const deskTools = deskRoot ? mountDeskPage(kit, cfg) : [];
+
   const mc = await kit.connect({ timeoutMs: 12000 });
   const forceDesk = new URLSearchParams(location.search).has("agentdesk");
-  if (!mc && !forceDesk) return; // no agent-capable browser; stay invisible
+  if (!mc && !forceDesk) return; // no agent-capable browser; tools + panel stay inert
 
   let registered = 0;
   if (mc) {
     for (const def of globalTools) if (await kit.registerTool(def)) registered++;
     registered += await kit.registerPageTools(!!cfg.product, productTools(cfg.product));
-  }
-
-  // The Agent Quote Desk: a shared human+agent worksheet. The page renders for
-  // everyone; its desk tools register only in agent-capable browsers.
-  if (document.getElementById("pk-desk-root")) {
-    const deskTools = mountDeskPage(kit, cfg);
-    if (mc) registered += await kit.registerPageTools(true, deskTools);
+    registered += await kit.registerPageTools(deskTools.length > 0, deskTools);
   }
 
   // Declarative API enhancement on the bulk-quote page's real form.
