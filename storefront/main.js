@@ -10,12 +10,17 @@ import { loadRecipes } from "../packages/merchant-kit/recipes.js";
 import { globalTools, productTools, setQuoteIntake } from "./tools.js";
 import { mountDesk } from "./desk.js";
 import { mountDeskPage } from "./deskpage.js";
+import { installPolyfill } from "./polyfill-inline.js";
 
 const SHOPIFY_BUILTIN_TOOL_COUNT = 10;
 
 async function init() {
   const cfg = window.__PACKRIFT_WEBMCP__ || {};
   if (cfg.quoteIntakeUrl) setQuoteIntake(cfg.quoteIntakeUrl);
+
+  // ?demo=1 — try-it-anywhere mode: no agent browser or flag needed.
+  const demoMode = new URLSearchParams(location.search).has("demo");
+  if (demoMode) installPolyfill();
 
   const kit = new MerchantKit({ merchant: "Packrift" });
   window.__packriftAgentDesk = kit; // debug/harness hook

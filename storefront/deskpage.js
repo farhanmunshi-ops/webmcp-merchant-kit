@@ -200,6 +200,62 @@ export function mountDeskPage(kit, cfg) {
     try { await navigator.clipboard.writeText(prompt); e.target.textContent = "Copied ✓"; } catch { e.target.textContent = prompt; }
   });
 
+  // "Watch a demo agent" — plays the real tool sequence through the page's model
+  // context (native in agent browsers; polyfilled with ?demo=1 anywhere else).
+  const callTool = async (name, args) => {
+    const mc = document.modelContext || navigator.modelContext;
+    let tool = name;
+    if (mc && typeof mc.getTools === "function") {
+      const found = (await mc.getTools()).find((t) => t.name === name);
+      if (found) tool = found; // native executeTool takes the RegisteredTool object
+    }
+    return mc.executeTool(tool, JSON.stringify(args));
+  };
+  const textOf = (r) => (r && r.content ? r.content.map((c) => c.text || "").join("") : String(r || ""));
+  const demoBtn = document.createElement("button");
+  demoBtn.type = "button";
+  demoBtn.id = "pk-demo";
+  demoBtn.className = "pk-btn";
+  demoBtn.style.cssText = "background:var(--pk-ink);margin-top:10px;margin-left:10px";
+  demoBtn.textContent = "▶ Watch a demo agent work this desk";
+  demoBtn.hidden = true;
+  $("#pk-file").after(demoBtn);
+  const revealDemo = () => { const mc = document.modelContext || navigator.modelContext; if (mc && typeof mc.executeTool === "function") demoBtn.hidden = false; };
+  revealDemo(); setTimeout(revealDemo, 1500); setTimeout(revealDemo, 4000);
+  demoBtn.addEventListener("click", async () => {
+    demoBtn.disabled = true;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    try {
+      $("#pk-paste").value = "S-4344 12x12x12 200# boxes — 250 @ $1.42 = $355.00";
+      $("#pk-zip").value = "75201";
+      await callTool("set_worksheet_plan", { status: "Demo agent: reading your worksheet…" });
+      await callTool("read_quote_worksheet", {});
+      await sleep(900);
+      await callTool("set_worksheet_plan", { status: "Matching 1 line against 13,000 SKUs…" });
+      const beat = textOf(await callTool("beat_supplier_quote", { lines: [{ description: "S-4344 12x12x12 200# kraft box", quantity: 250 }], supplier_total: 355, destination_zip: "75201" }));
+      const variant = (beat.match(/variant_id (\d+)/) || [])[1];
+      await sleep(900);
+      const priced = textOf(await callTool("estimate_shipping_cost", variant
+        ? { destination_postal_code: "75201", country: "US", items: [{ variant_id: variant, quantity: 10 }] }
+        : { destination_postal_code: "75201", country: "US", items: [] }));
+      let freight = null;
+      try { // MCP returns structured rates: [{ title, price, currency, ... }]
+        const parsed = JSON.parse(priced);
+        const rates = Array.isArray(parsed) ? parsed : (parsed.rates || parsed.results || []);
+        const best = rates.map((r) => +r.price).filter((n) => n > 0).sort((a, b) => a - b)[0];
+        if (best) freight = best.toFixed(2);
+      } catch { /* fall through to text scan */ }
+      if (!freight) freight = (priced.match(/"price":\s*"?(\d+(?:\.\d+)?)/) || priced.match(/\$\s?(\d+(?:\.\d{2})?)/) || [])[1];
+      await callTool("upsert_comparison_row", { row_id: "line1", supplier_line: "S-4344 12x12x12 200# boxes — 250 @ $1.42", quantity: 250, packrift_sku: "121212", packrift_title: "12x12x12 ECT-32 Kraft Cube Boxes 25-Pack (10 bundles)", packrift_url: "https://packrift.com/products/12x12x12-ect-32-kraft-corrugated-cube-boxes-25-pack-bundle", packrift_line_total: 312.10, supplier_line_total: 355.00, confidence: "high" });
+      await sleep(700);
+      await callTool("set_freight_line", freight ? { status: "estimated", amount_usd: +freight, note: "live estimate to 75201" } : { status: "needs_quote", note: "freight needs the human desk" });
+      await callTool("set_savings_summary", { supplier_total: 355.00, packrift_subtotal: 312.10, savings_usd: 42.90, savings_pct: 12.1 });
+      await callTool("set_worksheet_plan", { status: "Demo done — 1/1 line matched with live freight. This is what your agent does for real." });
+    } catch (err) {
+      $("#pk-plan").textContent = "Demo hit a snag: " + (err && err.message ? err.message : err);
+    } finally { demoBtn.disabled = false; }
+  });
+
   // Cross-tool composability: global tools (e.g. beat_supplier_quote) paint the
   // worksheet directly through this page-owned API.
   window.__pkDeskApi = {

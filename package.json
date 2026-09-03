@@ -10,7 +10,8 @@
     "test": "node --test test/kit.test.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0"
+    "esbuild": "^0.24.0",
+    "playwright": "1.60"
   },
   "license": "MIT"
 }

@@ -31,7 +31,8 @@
         name, description, inputSchema, annotations,
       }));
     },
-    async executeTool(name, argsJson, opts = {}) {
+    async executeTool(tool, argsJson, opts = {}) {
+      const name = typeof tool === "string" ? tool : tool && tool.name; // native API takes the RegisteredTool object
       const def = tools.get(name);
       if (!def) throw new DOMException(`no tool '${name}'`, "NotFoundError");
       const input = typeof argsJson === "string" ? JSON.parse(argsJson || "{}") : (argsJson || {});

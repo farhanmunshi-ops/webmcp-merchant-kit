@@ -36,6 +36,11 @@ export function whenModelContext({ timeoutMs = 8000, pollMs = 250 } = {}) {
   });
 }
 
+function requiredMissing(schema, input) {
+  const required = (schema && Array.isArray(schema.required)) ? schema.required : [];
+  return required.filter((k) => input == null || input[k] === undefined || input[k] === null || input[k] === "");
+}
+
 export class MerchantKit {
   /**
    * @param {object} opts
@@ -103,6 +108,14 @@ export class MerchantKit {
       async execute(input, ctx) {
         const startedAt = Date.now();
         kit._emit("call", { tool: def.name, input });
+        // Browsers don't enforce inputSchema (verified natively in Chrome 151):
+        // required-field validation is the tool's job, so the kit does it once here.
+        const missing = requiredMissing(def.inputSchema, input);
+        if (missing.length) {
+          const message = `${def.name}: missing required field(s): ${missing.join(", ")}`;
+          kit._emit("error", { tool: def.name, input, ms: 0, error: message });
+          return { content: [{ type: "text", text: message }] };
+        }
         try {
           const raw = await def.execute(input, ctx);
           const shaped = kit._shape(raw);

@@ -67,6 +67,16 @@ test("execute errors become friendly text, never throws, and emit error events",
   assert.equal(errors.length, 1);
 });
 
+test("required fields are validated by the kit (browsers don't)", async () => {
+  const kit = new MerchantKit({ merchant: "t" });
+  kit.mc = mockModelContext();
+  await kit.registerTool(dummy("needs", { inputSchema: { type: "object", properties: { a: { type: "string" } }, required: ["a"] } }));
+  const out = await kit.mc.executeTool("needs", "{}");
+  assert.match(out.content[0].text, /missing required field\(s\): a/);
+  const ok = await kit.mc.executeTool("needs", JSON.stringify({ a: "x" }));
+  assert.equal(ok.content[0].text, "ok");
+});
+
 test("call/result events fire around execution", async () => {
   const kit = new MerchantKit({ merchant: "t" });
   kit.mc = mockModelContext();
