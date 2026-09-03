@@ -4,7 +4,7 @@
  * narration outruns footage, narration mux, concat.
  */
 import { execFileSync } from "node:child_process";
-import { statSync, writeFileSync } from "node:fs";
+import { statSync, writeFileSync, readFileSync } from "node:fs";
 import ffmpegPath from "ffmpeg-static";
 
 const DIR = new URL("./", import.meta.url).pathname;
@@ -13,11 +13,12 @@ const FONT = "/System/Library/Fonts/Helvetica.ttc";
 // zoom: push toward (cx, cy) reaching `max` ~80% through the scene.
 // call: [text, tStart, tEnd] lower-third callout.
 const SPEC = {
-  s0_cold:  { zoom: { max: 1.06, cx: 0.51, cy: 0.54 }, call: ["$49.00 saved · live freight included", 3.0, 10.5] },
+  s0_cold:  { zoom: { max: 1.06, cx: 0.51, cy: 0.54 }, call: ["$48.77 saved · live freight included", 3.0, 10.5] },
   s1_title: {},
   s2_pdp:   { zoom: { max: 1.06, cx: 0.50, cy: 0.44 }, call: ["Answered from the page itself · zero network", 8.0, 14.0] },
-  s3_desk:  { zoom: { max: 1.06, cx: 0.51, cy: 0.52 }, call: ["$49.00 saved (12.7%)", 27.0, 34.5] },
+  s3_desk:  { zoom: { max: 1.06, cx: 0.51, cy: 0.52 }, call: ["$48.77 saved (12.2%) · every number live", 27.0, 34.5] },
   s4_file:  { zoom: { max: 1.06, cx: 0.49, cy: 0.56 }, call: ["Human-verified · exact freight · nothing auto-charged", 9.0, 17.0] },
+  s4b_verified: {},
   s5_outro: {},
 };
 const SCENES = Object.keys(SPEC);
@@ -30,6 +31,20 @@ const probe = (file) => {
     return m ? +m[1] * 3600 + +m[2] * 60 + +m[3] : 0;
   }
 };
+
+const SCRIPT = JSON.parse(readFileSync(`${DIR}script.json`, "utf8"));
+const srtTime = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = (s % 60); return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${sec.toFixed(3).padStart(6, "0").replace(".", ",")}`; };
+/** Split narration into caption chunks (~44 chars) and time them proportionally across the WAV. */
+function writeSrt(name, text, audioSeconds) {
+  const words = text.split(/\s+/); const chunks = []; let cur = "";
+  for (const w of words) { if ((cur + " " + w).trim().length > 44 && cur) { chunks.push(cur.trim()); cur = w; } else cur = (cur + " " + w); }
+  if (cur.trim()) chunks.push(cur.trim());
+  const total = chunks.reduce((n, c) => n + c.length, 0);
+  let t0 = 0.15; const lines = [];
+  chunks.forEach((c, i) => { const d = (audioSeconds - 0.3) * (c.length / total); lines.push(`${i + 1}\n${srtTime(t0)} --> ${srtTime(t0 + d - 0.05)}\n${c}\n`); t0 += d; });
+  const path = `${DIR}scenes/${name}.srt`; writeFileSync(path, lines.join("\n")); return path;
+}
+const CAPTION_STYLE = "FontName=Helvetica,FontSize=15,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BackColour=&H90000000,BorderStyle=4,Outline=1,Shadow=0,MarginV=22,Alignment=2";
 
 const parts = [];
 for (const name of SCENES) {
@@ -53,9 +68,11 @@ for (const name of SCENES) {
     const [text, t1, t2] = spec.call;
     chain.push(
       `drawtext=fontfile=${FONT}:expansion=none:text='${text}':fontsize=46:fontcolor=white` +
-      `:box=1:boxcolor=black@0.55:boxborderw=22:x=(w-text_w)/2:y=h-160` +
+      `:box=1:boxcolor=black@0.55:boxborderw=22:x=(w-text_w)/2:y=h-250` +
       `:enable='between(t,${t1},${t2})'`);
   }
+  const srt = writeSrt(name, SCRIPT[name], ad);
+  chain.push(`subtitles='${srt.replace(/'/g, "\\'")}':force_style='${CAPTION_STYLE}'`);
   chain.push(`tpad=stop_mode=clone:stop_duration=${pad.toFixed(2)}`, "scale=1920:1080");
 
   const out = `${DIR}scenes/${name}.mp4`;

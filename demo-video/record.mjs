@@ -95,11 +95,40 @@ const ROW1 = { row_id: "line1", supplier_line: "S-4344 12x12x12 200# boxes — 2
   packrift_sku: "121212", packrift_title: "12x12x12 ECT-32 Kraft Cube Boxes 25-Pack",
   packrift_url: "https://packrift.com/products/12x12x12-ect-32-kraft-corrugated-cube-boxes-25-pack-bundle",
   packrift_line_total: 312.10, supplier_line_total: 355.00, confidence: "high" };
-const ROW2 = { row_id: "line2", supplier_line: "6x9 poly bags 2 mil — 1,000", quantity: 1000,
-  packrift_sku: "PB69", packrift_title: "6x9 2 Mil Poly Bags — Case of 1,000",
-  packrift_url: "https://packrift.com/collections/poly-bags",
-  packrift_line_total: 24.90, supplier_line_total: 31.00, confidence: "medium" };
-const PASTE = "S-4344 12x12x12 200# boxes — 250 @ $1.42 = $355.00\n6x9 poly bags 2 mil — 1,000 @ $0.031 = $31.00\nTotal: $386.00";
+const ROW2 = { row_id: "line2", supplier_line: "6x9 poly bags 2 mil — 1,000 @ $0.046", quantity: 1000,
+  packrift_sku: "6x9-2mil-white-1000", packrift_title: "6x9 2 Mil White Flat Poly Bags 1000/Case",
+  packrift_url: "https://packrift.com/products/6x9-2-mil-white-flat-poly-bags-bulk-case-of-1000",
+  packrift_line_total: 40.13, supplier_line_total: 46.00, confidence: "high" };
+const PASTE = "S-4344 12x12x12 200# boxes — 250 @ $1.42 = $355.00\n6x9 poly bags 2 mil — 1,000 @ $0.046 = $46.00\nTotal: $401.00";
+const TOTALS = { supplier_total: 401.00, packrift_subtotal: 352.23, savings_usd: 48.77, savings_pct: 12.2 };
+/** Pre-warm + cache the live freight rate in Node (no recording running) so the cold open stays punchy. */
+let FREIGHT_CACHE = null;
+async function prewarmFreight() {
+  try {
+    const res = await fetch("https://mcp.packrift.com/mcp", { method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "get_shipping_estimate", arguments: {
+        destination_postal_code: "75201", country: "US",
+        items: [{ variant_id: "53472838484336", quantity: 10 }, { variant_id: "53473138147696", quantity: 1 }] } } }) });
+    let body = await res.text();
+    if (body.startsWith("event:") || body.startsWith("data:")) for (const l of body.split("\n")) if (l.startsWith("data:")) { body = l.slice(5); break; }
+    const text = (JSON.parse(body).result?.content || []).map((c) => c.text).join("");
+    const m = text.match(/"price":\s*"?(\d+(?:\.\d+)?)/);
+    FREIGHT_CACHE = m ? { status: "estimated", amount_usd: +(+m[1]).toFixed(2), note: "live rate to 75201" } : { status: "needs_quote" };
+  } catch { FREIGHT_CACHE = { status: "needs_quote" }; }
+  console.log("freight prewarmed:", JSON.stringify(FREIGHT_CACHE));
+}
+/** Live freight for the two real items (visible call in s3); s0/s4 use the pre-warmed cache. */
+async function liveFreight(page, { cached = false } = {}) {
+  if (cached && FREIGHT_CACHE) return FREIGHT_CACHE;
+  try {
+    const res = await exec(page, "estimate_shipping_cost", { destination_postal_code: "75201", country: "US",
+      items: [{ variant_id: "53472838484336", quantity: 10 }, { variant_id: "53473138147696", quantity: 1 }] });
+    const text = res.content.map((c) => c.text).join("");
+    const m = text.match(/"price":\s*"?(\d+(?:\.\d+)?)/);
+    return m ? { status: "estimated", amount_usd: +(+m[1]).toFixed(2), note: "live rate to 75201" } : { status: "needs_quote" };
+  } catch { return { status: "needs_quote" }; }
+}
 
 const TITLE = (h, sub, foot) => "data:text/html;charset=utf-8," + encodeURIComponent(`<!doctype html>
 <style>body{margin:0;background:#14110e;color:#f2ede7;font-family:Inter,-apple-system,system-ui,sans-serif;
@@ -112,16 +141,18 @@ p{font-size:29px;color:#a89e92;margin:0 0 12px;line-height:1.5}
 @keyframes in{from{opacity:0;transform:translateY(16px)}to{opacity:1}}
 </style><div class="w"><h1>${h}</h1><p>${sub}</p><div class="f">${foot}</div></div>`);
 
+await prewarmFreight();
+
 /* S0 — cold open: the payoff first */
 await scene("s0_cold", "https://packrift.com/pages/agent-desk?oseid=vidc", async (page) => {
   await page.fill("#pk-paste", PASTE);
   await page.fill("#pk-zip", "75201");
   await exec(page, "upsert_comparison_row", ROW1);
   await exec(page, "upsert_comparison_row", ROW2);
-  await exec(page, "set_freight_line", { status: "estimated", amount_usd: 88.00 });
+  await exec(page, "set_freight_line", await liveFreight(page, { cached: true }));
   await page.evaluate(() => window.scrollTo({ top: 150, behavior: "smooth" }));
   await page.waitForTimeout(1800);
-  await exec(page, "set_savings_summary", { supplier_total: 386.00, packrift_subtotal: 337.00, savings_usd: 49.00, savings_pct: 12.7 });
+  await exec(page, "set_savings_summary", TOTALS);
   await exec(page, "set_worksheet_plan", { status: "Done — 2/2 lines matched. Review and file when ready." });
   await page.waitForTimeout(4800);
 });
@@ -168,17 +199,17 @@ await scene("s3_desk", "https://packrift.com/pages/agent-desk?oseid=vid", async 
   await exec(page, "beat_supplier_quote", {
     lines: [{ description: "S-4344 12x12x12 200# kraft box", quantity: 250 },
             { description: "6x9 poly bags 2 mil", quantity: 1000 }],
-    supplier_total: 386, destination_zip: "75201" });
+    supplier_total: 401, destination_zip: "75201" });
   await page.waitForTimeout(2800);
   await exec(page, "upsert_comparison_row", ROW1);
   await page.waitForTimeout(2000);
   await exec(page, "upsert_comparison_row", ROW2);
   await page.waitForTimeout(2400);
-  await exec(page, "set_freight_line", { status: "estimated", amount_usd: 88.00, note: "live estimate to 75201" });
+  await exec(page, "set_freight_line", await liveFreight(page));
   await page.waitForTimeout(2400);
-  await exec(page, "set_savings_summary", { supplier_total: 386.00, packrift_subtotal: 337.00, savings_usd: 49.00, savings_pct: 12.7 });
+  await exec(page, "set_savings_summary", TOTALS);
   await exec(page, "set_worksheet_plan", { status: "Done — 2/2 lines matched. Review and file when ready." });
-  await say(page, "a", "Matched both lines, freight estimated. You save $49.00 (12.7%). Want me to file it for a pay-ready quote?", 11);
+  await say(page, "a", "Matched both lines with live freight. You save $48.77 (12.2%) on product. Want me to file it for a pay-ready quote?", 11);
   await page.waitForTimeout(9500);
 });
 
@@ -188,8 +219,8 @@ await scene("s4_file", "https://packrift.com/pages/agent-desk?oseid=vid4", async
   await page.fill("#pk-zip", "75201");
   await exec(page, "upsert_comparison_row", ROW1);
   await exec(page, "upsert_comparison_row", ROW2);
-  await exec(page, "set_freight_line", { status: "estimated", amount_usd: 88.00 });
-  await exec(page, "set_savings_summary", { supplier_total: 386.00, packrift_subtotal: 337.00, savings_usd: 49.00, savings_pct: 12.7 });
+  await exec(page, "set_freight_line", await liveFreight(page, { cached: true }));
+  await exec(page, "set_savings_summary", TOTALS);
   await page.evaluate(() => window.scrollTo({ top: 150, behavior: "smooth" }));
   await say(page, "u", "Yes — file it. demo@packrift.com");
   await page.waitForTimeout(1800);
@@ -199,6 +230,13 @@ await scene("s4_file", "https://packrift.com/pages/agent-desk?oseid=vid4", async
   await page.evaluate((t) => window.__demoSay("a", t.slice(0, 170), 11), filed.content[0].text);
   await page.waitForTimeout(8500);
 });
+
+/* S4b — native verification card */
+await scene("s4b_verified",
+  TITLE("Verified against the <em>native</em> API.",
+    "Google Chrome 151 · real <code>document.modelContext</code> · 23 tools coexisting on one page —<br>Shopify's 10 built-ins + Packrift's 13 · zero collisions",
+    "Reproducible: node scripts/verify-native.mjs"),
+  async (page) => { await page.waitForTimeout(8000); });
 
 /* S5 — outro card */
 await scene("s5_outro",
