@@ -13,7 +13,7 @@ const FONT = "/System/Library/Fonts/Helvetica.ttc";
 // zoom: push toward (cx, cy) reaching `max` ~80% through the scene.
 // call: [text, tStart, tEnd] lower-third callout.
 const SPEC = {
-  s0_cold:  { zoom: { max: 1.06, cx: 0.51, cy: 0.54 }, call: ["$48.77 saved · live freight included", 3.0, 10.5] },
+  s0_cold:  { zoom: { max: 1.06, cx: 0.51, cy: 0.54 }, call: ["$48.77 saved · live freight included", 5.6, 11.0] },
   s1_title: {},
   s2_pdp:   { zoom: { max: 1.06, cx: 0.50, cy: 0.44 }, call: ["Answered from the page itself · zero network", 8.0, 14.0] },
   s3_desk:  { zoom: { max: 1.06, cx: 0.51, cy: 0.52 }, call: ["$48.77 saved (12.2%) · every number live", 27.0, 34.5] },
