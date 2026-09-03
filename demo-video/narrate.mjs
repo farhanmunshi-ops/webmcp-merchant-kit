@@ -18,7 +18,7 @@ for (const [name, text] of Object.entries(SCRIPT)) {
       modalities: ["text", "audio"],
       audio: { voice: "onyx", format: "wav" },
       messages: [
-        { role: "system", content: "You are the voiceover artist for a polished product launch video. Read the user's script aloud VERBATIM — confident, warm, measured pace with natural pauses at dashes. Do not add, drop, or change any words." },
+        { role: "system", content: "You are the voiceover artist for a polished product launch video. Read the user's script aloud VERBATIM at a brisk, energetic pace — about 20 percent faster than a relaxed read, crisp diction, short natural pauses at dashes, never rushed or slurred. Do not add, drop, or change any words." },
         { role: "user", content: text },
       ],
     }),

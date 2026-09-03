@@ -55,17 +55,21 @@ for (const name of SCENES) {
   const target = Math.max(vd, ad + 0.8);
   const pad = Math.max(0, target - vd);
   const spec = SPEC[name];
+  const SPEED = spec.zoom ? 1.12 : 1.0;           // product scenes run 12% faster; title cards as-is
+  const vdEff = vd / SPEED;                       // effective footage length after speed-up
+  const targetEff = Math.max(vdEff, ad + 0.8);
+  const padEff = Math.max(0, targetEff - vdEff);
 
-  const chain = ["fps=30"];
+  const chain = [`setpts=PTS/${SPEED}`, "fps=30"];
   if (spec.zoom) {
     const { max, cx, cy } = spec.zoom;
-    const rate = ((max - 1) / (0.8 * vd * 30)).toFixed(7);
+    const rate = ((max - 1) / (0.8 * vdEff * 30)).toFixed(7);
     chain.push(
       `zoompan=z='min(1+${rate}*on,${max})'` +
       `:x='${cx}*iw-(iw/zoom/2)':y='${cy}*ih-(ih/zoom/2)':d=1:fps=30:s=1920x1080`);
   }
   if (spec.call) {
-    const [text, t1, t2] = spec.call;
+    const [text, t1r, t2r] = spec.call; const t1 = (t1r / SPEED).toFixed(2), t2 = (t2r / SPEED).toFixed(2);
     chain.push(
       `drawtext=fontfile=${FONT}:expansion=none:text='${text}':fontsize=46:fontcolor=white` +
       `:box=1:boxcolor=black@0.55:boxborderw=22:x=(w-text_w)/2:y=h-250` +
@@ -79,20 +83,21 @@ for (const name of SCENES) {
   }
   const srt = writeSrt(name, SCRIPT[name], ad);
   chain.push(`subtitles='${srt.replace(/'/g, "\\'")}':force_style='${CAPTION_STYLE}'`);
-  chain.push(`tpad=stop_mode=clone:stop_duration=${pad.toFixed(2)}`, "scale=1920:1080");
+  chain.push(`tpad=stop_mode=clone:stop_duration=${padEff.toFixed(2)}`, "scale=1920:1080",
+    `fade=t=in:st=0:d=0.3`, `fade=t=out:st=${(targetEff - 0.35).toFixed(2)}:d=0.35`);
 
   const out = `${DIR}scenes/${name}.mp4`;
   ff([
     "-i", v, "-i", a,
-    "-filter_complex", `[0:v]${chain.join(",")}[v];[1:a]aresample=44100,apad[aa]`,
+    "-filter_complex", `[0:v]${chain.join(",")}[v];[1:a]aresample=44100,apad,afade=t=out:st=${(targetEff - 0.3).toFixed(2)}:d=0.3[aa]`,
     "-map", "[v]", "-map", "[aa]",
-    "-t", target.toFixed(2),
+    "-t", targetEff.toFixed(2),
     "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p",
     "-c:a", "aac", "-b:a", "160k",
     out,
   ]);
   parts.push(out);
-  console.log(name, `video ${vd.toFixed(1)}s, narration ${ad.toFixed(1)}s -> ${target.toFixed(1)}s`);
+  console.log(name, `video ${vd.toFixed(1)}s (x${SPEED} -> ${vdEff.toFixed(1)}s), narration ${ad.toFixed(1)}s -> ${targetEff.toFixed(1)}s`);
 }
 
 writeFileSync(`${DIR}concat.txt`, parts.map((p) => `file '${p}'`).join("\n"));

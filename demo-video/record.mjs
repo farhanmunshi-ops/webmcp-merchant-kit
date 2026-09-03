@@ -38,12 +38,22 @@ const OVERLAYS = `(function(){
       'background:rgba(232,97,0,.92);box-shadow:0 0 0 5px rgba(232,97,0,.28);pointer-events:none;'+
       'transition:left .55s cubic-bezier(.4,0,.2,1),top .55s cubic-bezier(.4,0,.2,1);left:-60px;top:40%}'+
       '#demo-cursor.click{animation:demoClick .35s ease-out}'+
-      '@keyframes demoClick{0%{transform:scale(1)}40%{transform:scale(.6)}100%{transform:scale(1)}}';
+      '@keyframes demoClick{0%{transform:scale(1)}40%{transform:scale(.6)}100%{transform:scale(1)}}'+
+      '#pk-rows tr{animation:pkRowIn .55s cubic-bezier(.2,.8,.2,1) both}'+
+      '@keyframes pkRowIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}'+
+      '.pk-pop{animation:pkPop .7s cubic-bezier(.2,.9,.3,1.4)}'+
+      '@keyframes pkPop{0%{transform:scale(.6);opacity:.2}60%{transform:scale(1.18)}100%{transform:scale(1);opacity:1}}'+
+      '.pk-totals div span{display:inline-block}';
     document.head.appendChild(s);
     const d=document.createElement('div');d.id='demo-chat';
     d.innerHTML='<div class="h">Your agent</div><div id="demo-chat-log"></div>';
     document.body.appendChild(d);
     const c=document.createElement('div');c.id='demo-cursor';document.body.appendChild(c);
+    const pop=(el)=>{el.classList.remove('pk-pop');void el.offsetWidth;el.classList.add('pk-pop');};
+    for (const id of ['pk-t-supplier','pk-t-sub','pk-t-freight','pk-t-save','pk-plan']) {
+      const el=document.getElementById(id); if(!el) continue;
+      new MutationObserver(()=>pop(el)).observe(el,{childList:true,characterData:true,subtree:true});
+    }
   };
   window.__demoSay = async function(cls, text, cps){
     window.__demoChat();
