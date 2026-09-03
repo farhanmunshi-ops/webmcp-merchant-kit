@@ -71,6 +71,12 @@ for (const name of SCENES) {
       `:box=1:boxcolor=black@0.55:boxborderw=22:x=(w-text_w)/2:y=h-250` +
       `:enable='between(t,${t1},${t2})'`);
   }
+  // Transparency line on product scenes: the narrating "agent" is scripted; the tools and store are real.
+  if (["s0_cold", "s2_pdp", "s3_desk", "s4_file"].includes(name)) {
+    chain.push(
+      `drawtext=fontfile=${FONT}:expansion=none:text='Scripted agent run · real tools · real store':fontsize=26:fontcolor=white@0.92` +
+      `:box=1:boxcolor=black@0.45:boxborderw=12:x=w-text_w-34:y=30`);
+  }
   const srt = writeSrt(name, SCRIPT[name], ad);
   chain.push(`subtitles='${srt.replace(/'/g, "\\'")}':force_style='${CAPTION_STYLE}'`);
   chain.push(`tpad=stop_mode=clone:stop_duration=${pad.toFixed(2)}`, "scale=1920:1080");
