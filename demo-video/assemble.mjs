@@ -75,7 +75,7 @@ for (const name of SCENES) {
   if (["s0_cold", "s2_pdp", "s3_desk", "s4_file"].includes(name)) {
     chain.push(
       `drawtext=fontfile=${FONT}:expansion=none:text='Scripted agent run · real tools · real store':fontsize=26:fontcolor=white@0.92` +
-      `:box=1:boxcolor=black@0.45:boxborderw=12:x=w-text_w-34:y=30`);
+      `:box=1:boxcolor=black@0.45:boxborderw=12:x=w-text_w-34:y=184`);
   }
   const srt = writeSrt(name, SCRIPT[name], ad);
   chain.push(`subtitles='${srt.replace(/'/g, "\\'")}':force_style='${CAPTION_STYLE}'`);
